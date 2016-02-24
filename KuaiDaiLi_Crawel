@@ -1,0 +1,109 @@
+# coding: utf-8
+import re
+import time
+from optparse import OptionParser
+from pyquery import PyQuery as jq
+
+__author__ = 'DK'
+
+
+class Crawel:
+    """http://www.kuaidaili.com/ 快代理免费代理爬虫
+    """
+
+    def __init__(self, mode=0, count=0, fileWrite=True, stime=0.5):
+        """
+        :param mode: int, 代理选择. (1:国内高匿, 2:国内普通, 3:国外高匿, 4:国外普通)
+        :param count: int, 要爬取的代理数量. (0为不限制数量)
+        :param fileWrite: boolean. 是否写入文件. (文件名以当前时间命名)
+        :param stime: double, 请求间隔时间.
+        """
+        self.mode = int(mode)
+        self.maxCount = 30  # int(count)
+        self.writeMode = fileWrite
+        self.sleepTime = stime
+        self.page = 0
+        self.url = 'http://www.kuaidaili.com/free/{mode}/'.replace('{mode}', self.detectMode(self.mode))
+        self.result = []
+
+    def start(self):
+        self.page = self._getPage()
+        count = 0
+        for page in xrange(1, self.page):
+            if count >= self.maxCount != 0:
+                break
+            url = self.url + str(page)
+            htmlData = jq(url)
+            for trData in htmlData('.table').find('tbody tr'):
+                text = jq(trData).text()
+                if not self.writeMode:
+                    print text
+                else:
+                    self.result.append(text)
+                count += 1
+            # 间隔时间
+            if self.sleepTime:
+                time.sleep(self.sleepTime)
+        ############################################
+        if self.writeMode:
+            fileName = time.asctime().replace(' ', '_')
+            fp = open(fileName, 'a')
+            for data in self.result:
+                fp.write(data.encode('utf-8') + '\n')
+            fp.close()
+        print 'The end of the %s' % time.asctime()
+
+    @staticmethod
+    def detectMode(mode):
+        mode = int(mode)
+        if mode == 1:
+            return 'inha'
+        elif mode == 2:
+            return 'intr'
+        elif mode == 3:
+            return 'outha'
+        elif mode == 4:
+            return 'outtr'
+        else:
+            return 'inha'
+
+    def _getPage(self):
+        htmlData = jq(url=self.url)
+        listData = htmlData('#listnav')
+        pageText = listData('li').text()
+        data = re.findall(r'([0-9]+)', pageText)
+        return int(data[-1])
+
+
+if __name__ == '__main__':
+    parser = OptionParser()
+    #########################################################
+    parser.add_option("-m", "--mode", action="store",
+                      type="int",
+                      dest="mode",
+                      default=1,
+                      help="eg: 1/2/3/4. (1: IN Anonymous, 2: IN General, 3: OUT Anonymous, 4: OUT General)")
+    parser.add_option("-c", "--count", action="store",
+                      type="int",
+                      dest="count",
+                      default=0,
+                      help="The number of proxies.")
+    parser.add_option("-w", "--write", action="store_true",
+                      dest="write",
+                      default=False,
+                      help="Whether to write the file.")
+    parser.add_option("-s", "--sleep", action="store",
+                      type="int",
+                      dest="sleep",
+                      default=0.5,
+                      help='request Sleep time.')
+    ##########################################################
+    (options, args) = parser.parse_args()
+
+    test = Crawel(
+        mode=options.mode,
+        count=options.count,
+        fileWrite=options.write,
+        stime=options.sleep
+    )
+    test.start()
